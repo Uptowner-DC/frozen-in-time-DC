@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Frozen in Time — DC's Historic District Guessing Game</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e0e0e;
+    --surface: #161616;
+    --surface2: #1e1e1e;
+    --border: #2a2a2a;
+    --gold: #c8a84b;
+    --gold-light: #e0c068;
+    --red: #c0392b;
+    --green: #27ae60;
+    --text: #e8e4dc;
+    --muted: #6b6560;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 300;
+    min-height: 100vh;
+    overflow-x: hidden;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -20%, rgba(200,168,75,0.07) 0%, transparent 60%),
+      repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(255,255,255,0.015) 40px),
+      repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(255,255,255,0.015) 40px);
+  }
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 70px;
+    position: sticky;
+    top: 0;
+    background: rgba(14,14,14,0.95);
+    backdrop-filter: blur(12px);
+    z-index: 100;
+  }
+  .logo { font-family: 'Playfair Display', serif; font-weight: 900; font-size: 1.35rem; letter-spacing: -0.02em; color: var(--gold); line-height: 1; }
+  .logo span { display: block; font-size: 0.55rem; font-family: 'DM Mono', monospace; font-weight: 400; color: var(--muted); letter-spacing: 0.18em; text-transform: uppercase; margin-top: 3px; }
+  .score-pill { font-family: 'DM Mono', monospace; font-size: 0.72rem; letter-spacing: 0.08em; color: var(--muted); background: var(--surface); border: 1px solid var(--border); padding: 0.4rem 1rem; border-radius: 99px; }
+  .score-pill strong { color: var(--gold); font-weight: 500; }
+  main { max-width: 860px; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
+  .headline { text-align: center; margin-bottom: 2.5rem; animation: fadeUp 0.7s ease both; }
+  .kicker { font-family: 'DM Mono', monospace; font-size: 0.65rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold); margin-bottom: 0.75rem; opacity: 0.85; }
+  h1 { font-family: 'Playfair Display', serif; font-weight: 900; font-size: clamp(2.2rem, 5vw, 3.4rem); line-height: 1.05; letter-spacing: -0.03em; color: var(--text); }
+  h1 em { font-style: italic; color: var(--gold); }
+  .subhead { margin-top: 0.9rem; font-size: 0.92rem; color: var(--muted); line-height: 1.7; max-width: 520px; margin-inline: auto; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; overflow: hidden; position: relative; animation: fadeUp 0.5s ease both; }
+  .card::before, .card::after { content: ''; position: absolute; width: 20px; height: 20px; border-color: var(--gold); border-style: solid; opacity: 0.3; z-index: 2; pointer-events: none; }
+  .card::before { top: 10px; left: 10px; border-width: 1px 0 0 1px; }
+  .card::after  { top: 10px; right: 10px; border-width: 1px 1px 0 0; }
+  .sv-wrapper { position: relative; width: 100%; height: 440px; background: #0a0a0a; overflow: hidden; }
+  .sv-wrapper iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  .sv-overlay {
+    position: absolute; inset: 0; background: #0a0a0a; z-index: 10;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem;
+    transition: opacity 0.6s ease;
+  }
+  .sv-overlay.fade-out { opacity: 0; pointer-events: none; }
+  .spinner { width: 36px; height: 36px; border: 2px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  .loading-text { font-family: 'DM Mono', monospace; font-size: 0.65rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); }
+  .addr-bar {
+    position: absolute; bottom: 0; left: 0; right: 0; z-index: 9;
+    padding: 2rem 1rem 0.65rem;
+    background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 100%);
+    font-family: 'DM Mono', monospace; font-size: 0.68rem; letter-spacing: 0.1em;
+    color: rgba(232,228,220,0.6); pointer-events: none; opacity: 0; transition: opacity 0.4s ease;
+  }
+  .addr-bar.visible { opacity: 1; }
+  .question-zone { padding: 1.75rem 2rem; border-top: 1px solid var(--border); }
+  .question-label { font-family: 'DM Mono', monospace; font-size: 0.62rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); margin-bottom: 1.1rem; }
+  .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem; }
+  .guess-btn { padding: 1rem 1.2rem; border-radius: 3px; border: 1px solid var(--border); background: var(--surface2); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.18s ease; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+  .guess-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+  .guess-btn:active { transform: scale(0.98); }
+  .guess-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .guess-btn.yes-btn { border-color: rgba(200,168,75,0.3); color: var(--gold-light); }
+  .guess-btn.yes-btn:hover:not(:disabled) { background: rgba(200,168,75,0.08); border-color: rgba(200,168,75,0.5); }
+  .guess-btn.no-btn { border-color: rgba(108,108,108,0.3); color: #aaa; }
+  .guess-btn.no-btn:hover:not(:disabled) { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.15); }
+  .guess-btn.correct-flash { border-color: var(--green) !important; color: var(--green) !important; background: rgba(39,174,96,0.1) !important; }
+  .guess-btn.wrong-flash  { border-color: var(--red) !important;   color: var(--red) !important;   background: rgba(192,57,43,0.1) !important; }
+  .reveal-panel { border-top: 1px solid var(--border); overflow: hidden; max-height: 0; transition: max-height 0.5s cubic-bezier(0.4,0,0.2,1); }
+  .reveal-panel.open { max-height: 500px; }
+  .reveal-inner { padding: 1.75rem 2rem; display: grid; grid-template-columns: 1fr auto; gap: 1.5rem; align-items: start; }
+  .verdict-tag { display: inline-flex; align-items: center; gap: 0.4rem; font-family: 'DM Mono', monospace; font-size: 0.65rem; letter-spacing: 0.15em; text-transform: uppercase; padding: 0.3rem 0.75rem; border-radius: 2px; margin-bottom: 0.8rem; }
+  .verdict-tag.historic    { background: rgba(200,168,75,0.12); color: var(--gold); border: 1px solid rgba(200,168,75,0.3); }
+  .verdict-tag.not-historic{ background: rgba(255,255,255,0.04); color: var(--muted); border: 1px solid var(--border); }
+  .reveal-address { font-family: 'Playfair Display', serif; font-size: 1.25rem; font-weight: 700; line-height: 1.3; margin-bottom: 0.5rem; }
+  .reveal-district { font-size: 0.83rem; color: var(--muted); line-height: 1.6; }
+  .reveal-district strong { color: var(--gold-light); font-weight: 500; }
+  .result-icon { font-size: 2.5rem; line-height: 1; }
+  .next-area { border-top: 1px solid var(--border); padding: 1.25rem 2rem; display: flex; align-items: center; justify-content: space-between; opacity: 0; transition: opacity 0.4s 0.3s; pointer-events: none; }
+  .next-area.visible { opacity: 1; pointer-events: all; }
+  .next-btn { font-family: 'DM Mono', monospace; font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; padding: 0.65rem 1.5rem; background: var(--gold); color: #0e0e0e; border: none; border-radius: 2px; cursor: pointer; font-weight: 500; transition: background 0.18s, transform 0.1s; }
+  .next-btn:hover { background: var(--gold-light); }
+  .next-btn:active { transform: scale(0.97); }
+  .streak-display { font-family: 'DM Mono', monospace; font-size: 0.68rem; letter-spacing: 0.08em; color: var(--muted); }
+  .streak-display strong { color: var(--text); }
+  .counter-bar { display: flex; align-items: center; justify-content: center; gap: 2.5rem; padding: 1.5rem 0 0; animation: fadeUp 0.9s ease both 0.2s; }
+  .counter-item { text-align: center; }
+  .counter-num { font-family: 'Playfair Display', serif; font-size: 2.2rem; font-weight: 700; line-height: 1; color: var(--gold); }
+  .counter-num.red { color: var(--red); }
+  .counter-label { font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-top: 0.3rem; }
+  .divider { width: 1px; height: 40px; background: var(--border); }
+  .progress-line { height: 2px; background: var(--border); position: relative; overflow: hidden; }
+  .progress-fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--gold); transition: width 1.2s cubic-bezier(0.4,0,0.2,1); }
+  footer { text-align: center; padding: 2rem; font-family: 'DM Mono', monospace; font-size: 0.62rem; letter-spacing: 0.1em; color: var(--muted); border-top: 1px solid var(--border); margin-top: 2rem; }
+  footer a { color: var(--gold); text-decoration: none; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (max-width: 540px) {
+    .reveal-inner { grid-template-columns: 1fr; }
+    .result-icon { display: none; }
+    .counter-bar { gap: 1.5rem; }
+    .counter-num { font-size: 1.6rem; }
+    .sv-wrapper { height: 280px; }
+    .btn-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Frozen in Time<span>DC Historic District Roulette</span></div>
+  <div class="score-pill">Correct: <strong id="hdr-correct">0</strong> &nbsp;/&nbsp; Played: <strong id="hdr-total">0</strong></div>
+</header>
+
+<main>
+  <div class="headline">
+    <div class="kicker">A game about America's most over-preserved city</div>
+    <h1>Is it <em>Historic</em><br>or just… old?</h1>
+    <p class="subhead">Over 20% of DC's buildings are officially "historic" — more than Boston, Philadelphia, and New York. Look at a street. Take your best guess.</p>
+  </div>
+  <div class="counter-bar">
+    <div class="counter-item"><div class="counter-num" id="cnt-correct">0</div><div class="counter-label">Correct</div></div>
+    <div class="divider"></div>
+    <div class="counter-item"><div class="counter-num red" id="cnt-wrong">0</div><div class="counter-label">Wrong</div></div>
+    <div class="divider"></div>
+    <div class="counter-item"><div class="counter-num" id="cnt-streak">0</div><div class="counter-label">Streak 🔥</div></div>
+  </div>
+  <br>
+  <div class="card" id="main-card">
+    <div class="progress-line"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+    <div class="sv-wrapper" id="sv-wrapper">
+      <div class="sv-overlay" id="sv-overlay">
+        <div class="spinner"></div>
+        <div class="loading-text" id="loading-text">Geocoding address…</div>
+      </div>
+      <div class="addr-bar" id="addr-bar"></div>
+    </div>
+    <div class="question-zone">
+      <div class="question-label">Your verdict — is this address in a DC Historic District?</div>
+      <div class="btn-row">
+        <button class="guess-btn yes-btn" id="btn-yes" onclick="guess(true)"  disabled>🏛️ &nbsp;Yes — Historic District</button>
+        <button class="guess-btn no-btn"  id="btn-no"  onclick="guess(false)" disabled>🏚️ &nbsp;Nope, just a regular street</button>
+      </div>
+    </div>
+    <div class="reveal-panel" id="reveal-panel">
+      <div class="reveal-inner">
+        <div>
+          <div class="verdict-tag" id="verdict-tag"></div>
+          <div class="reveal-address" id="reveal-address"></div>
+          <div class="reveal-district" id="reveal-district"></div>
+        </div>
+        <div class="result-icon" id="result-icon"></div>
+      </div>
+    </div>
+    <div class="next-area" id="next-area">
+      <div class="streak-display" id="streak-display"></div>
+      <button class="next-btn" onclick="nextAddress()">Next Address →</button>
+    </div>
+  </div>
+</main>
+
+<footer>
+  Frozen in Time — a love letter to DC's preservation bureaucracy &nbsp;·&nbsp;
+  Street views via Google Maps &nbsp;·&nbsp;
+  Data from the <a href="https://planning.dc.gov/page/dc-historic-districts" target="_blank">DC Office of Planning</a>
+</footer>
+
+<script>
+const API_KEY = 'AIzaSyDvUToY7v1LSI4nJY0wRzq5lT-SO8X8gAA';
+
+const addresses = [
+  { addr: "320 A St SE, Washington, DC 20003",               historic: true,  district: "Capitol Hill Historic District",                  year: 1976 },
+  { addr: "234 6th St NE, Washington, DC 20002",             historic: true,  district: "Capitol Hill Historic District",                  year: 1976 },
+  { addr: "410 Independence Ave SE, Washington, DC 20003",   historic: true,  district: "Capitol Hill Historic District",                  year: 1976 },
+  { addr: "215 4th St SE, Washington, DC 20003",             historic: true,  district: "Capitol Hill Historic District",                  year: 1976 },
+  { addr: "136 11th St SE, Washington, DC 20003",            historic: true,  district: "Capitol Hill Historic District",                  year: 1976 },
+  { addr: "1614 31st St NW, Washington, DC 20007",           historic: true,  district: "Georgetown Historic District",                    year: 1967 },
+  { addr: "3267 P St NW, Washington, DC 20007",              historic: true,  district: "Georgetown Historic District",                    year: 1967 },
+  { addr: "2314 N St NW, Washington, DC 20037",              historic: true,  district: "Georgetown Historic District",                    year: 1967 },
+  { addr: "3320 Prospect St NW, Washington, DC 20007",       historic: true,  district: "Georgetown Historic District",                    year: 1967 },
+  { addr: "1242 30th St NW, Washington, DC 20007",           historic: true,  district: "Georgetown Historic District",                    year: 1967 },
+  { addr: "2101 Q St NW, Washington, DC 20008",              historic: true,  district: "Dupont Circle Historic District",                 year: 1977 },
+  { addr: "1736 R St NW, Washington, DC 20009",              historic: true,  district: "Dupont Circle Historic District",                 year: 1977 },
+  { addr: "1614 Swann St NW, Washington, DC 20009",          historic: true,  district: "Dupont Circle Historic District",                 year: 1977 },
+  { addr: "1749 Massachusetts Ave NW, Washington, DC 20036", historic: true,  district: "Massachusetts Avenue Historic District",          year: 1973 },
+  { addr: "2136 Massachusetts Ave NW, Washington, DC 20008", historic: true,  district: "Massachusetts Avenue Historic District",          year: 1973 },
+  { addr: "1623 16th St NW, Washington, DC 20009",           historic: true,  district: "Sixteenth Street Historic District",              year: 1978 },
+  { addr: "1801 16th St NW, Washington, DC 20009",           historic: true,  district: "Sixteenth Street Historic District",              year: 1978 },
+  { addr: "55 Bryant St NW, Washington, DC 20001",           historic: true,  district: "Bloomingdale Historic District",                  year: 2020 },
+  { addr: "119 Randolph Pl NW, Washington, DC 20001",        historic: true,  district: "Bloomingdale Historic District",                  year: 2020 },
+  { addr: "1334 9th St NW, Washington, DC 20001",            historic: true,  district: "Shaw Historic District",                          year: 1999 },
+  { addr: "1215 U St NW, Washington, DC 20009",              historic: true,  district: "U Street Historic District",                      year: 1998 },
+  { addr: "1901 G St NW, Washington, DC 20006",              historic: true,  district: "Foggy Bottom Historic District",                  year: 1990 },
+  { addr: "722 24th St NW, Washington, DC 20037",            historic: true,  district: "Foggy Bottom Historic District",                  year: 1990 },
+  { addr: "1341 Euclid St NW, Washington, DC 20009",         historic: true,  district: "Mount Pleasant Historic District",                year: 1987 },
+  { addr: "1758 Columbia Rd NW, Washington, DC 20009",       historic: true,  district: "Mount Pleasant Historic District",                year: 1987 },
+  { addr: "3015 14th St NW, Washington, DC 20009",           historic: true,  district: "Columbia Heights Historic District",              year: 2018 },
+  { addr: "1316 Irving St NW, Washington, DC 20010",         historic: true,  district: "Columbia Heights Historic District",              year: 2018 },
+  { addr: "1716 Lanier Pl NW, Washington, DC 20009",         historic: true,  district: "Lanier Heights Historic District",                year: 2019 },
+  { addr: "1800 Belmont Rd NW, Washington, DC 20009",        historic: true,  district: "Lanier Heights Historic District",                year: 2019 },
+  { addr: "420 6th St SW, Washington, DC 20024",             historic: true,  district: "Wheat Row Historic District",                     year: 1978 },
+  { addr: "1832 Phelps Pl NW, Washington, DC 20008",         historic: true,  district: "Kalorama Historic District",                      year: 1987 },
+  { addr: "1901 Wyoming Ave NW, Washington, DC 20009",       historic: true,  district: "Kalorama Historic District",                      year: 1987 },
+  { addr: "1400 Rhode Island Ave NW, Washington, DC 20005",  historic: true,  district: "Logan Circle Historic District",                  year: 1992 },
+  { addr: "1321 Vermont Ave NW, Washington, DC 20005",       historic: true,  district: "Logan Circle Historic District",                  year: 1992 },
+  { addr: "17 Seaton Pl NW, Washington, DC 20001",           historic: true,  district: "Strivers' Section Historic District",             year: 1994 },
+  { addr: "1317 F St NE, Washington, DC 20002",              historic: true,  district: "H Street NE Historic District",                   year: 2018 },
+  { addr: "316 12th St NE, Washington, DC 20002",            historic: true,  district: "Kingman Park Historic District",                  year: 2019 },
+  { addr: "322 15th St NE, Washington, DC 20002",            historic: true,  district: "Kingman Park Historic District",                  year: 2019 },
+  { addr: "1532 44th St NW, Washington, DC 20007",           historic: true,  district: "Spring Valley Historic District",                 year: 2014 },
+  { addr: "4437 Reservoir Rd NW, Washington, DC 20007",      historic: true,  district: "Spring Valley Historic District",                 year: 2014 },
+  { addr: "3101 Garfield St NW, Washington, DC 20008",       historic: true,  district: "Cleveland Park Historic District",                year: 1986 },
+  { addr: "3239 Ordway St NW, Washington, DC 20016",         historic: true,  district: "Cleveland Park Historic District",                year: 1986 },
+  { addr: "3700 Chesapeake St NW, Washington, DC 20016",     historic: true,  district: "Chevy Chase Historic District",                   year: 1986 },
+  { addr: "25 Florida Ave NW, Washington, DC 20001",         historic: true,  district: "Blagden Alley / Naylor Court Historic District",  year: 1990 },
+  { addr: "4218 14th St NW, Washington, DC 20011",           historic: false, district: null },
+  { addr: "200 Peabody St NW, Washington, DC 20011",         historic: false, district: null },
+  { addr: "1240 Good Hope Rd SE, Washington, DC 20020",      historic: false, district: null },
+  { addr: "3502 14th St NW, Washington, DC 20010",           historic: false, district: null },
+  { addr: "4620 Georgia Ave NW, Washington, DC 20011",       historic: false, district: null },
+  { addr: "5900 3rd St NW, Washington, DC 20011",            historic: false, district: null },
+  { addr: "3015 Sherman Ave NW, Washington, DC 20010",       historic: false, district: null },
+  { addr: "3727 10th St NE, Washington, DC 20017",           historic: false, district: null },
+  { addr: "2300 15th St NE, Washington, DC 20018",           historic: false, district: null },
+  { addr: "4400 Sheriff Rd NE, Washington, DC 20019",        historic: false, district: null },
+  { addr: "3000 Martin Luther King Jr Ave SE, Washington, DC 20032", historic: false, district: null },
+  { addr: "600 Rhode Island Ave NE, Washington, DC 20002",   historic: false, district: null },
+  { addr: "1415 Fairmont St NW, Washington, DC 20009",       historic: false, district: null },
+  { addr: "3800 New Hampshire Ave NW, Washington, DC 20011", historic: false, district: null },
+  { addr: "1318 Nicholson St NW, Washington, DC 20011",      historic: false, district: null },
+  { addr: "4315 Kansas Ave NW, Washington, DC 20011",        historic: false, district: null },
+  { addr: "2810 University Pl NW, Washington, DC 20017",     historic: false, district: null },
+  { addr: "4900 MacArthur Blvd NW, Washington, DC 20016",    historic: false, district: null },
+  { addr: "1619 V St NW, Washington, DC 20009",              historic: false, district: null },
+  { addr: "5325 Colorado Ave NW, Washington, DC 20011",      historic: false, district: null },
+  { addr: "1420 Girard St NW, Washington, DC 20009",         historic: false, district: null },
+  { addr: "327 Anacostia Ave NE, Washington, DC 20019",      historic: false, district: null },
+  { addr: "1450 Meigs Pl NE, Washington, DC 20018",          historic: false, district: null },
+  { addr: "5000 Deane Ave SE, Washington, DC 20019",         historic: false, district: null },
+  { addr: "1109 Michigan Ave NE, Washington, DC 20017",      historic: false, district: null },
+  { addr: "3830 Southern Ave SE, Washington, DC 20020",      historic: false, district: null },
+  { addr: "6500 Eastern Ave NE, Washington, DC 20012",       historic: false, district: null },
+  { addr: "4730 Connecticut Ave NW, Washington, DC 20008",   historic: false, district: null },
+  { addr: "2601 Adams Mill Rd NW, Washington, DC 20009",     historic: false, district: null },
+  { addr: "3500 Wheeler Rd SE, Washington, DC 20032",        historic: false, district: null },
+];
+
+// Cache geocoded results so we don't re-fetch
+const coordCache = {};
+
+let correct = 0, wrong = 0, streak = 0, total = 0;
+let pool = [], current = null, answered = false;
+let loadTimer = null;
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// Step 1: geocode the address via Geocoding API → get exact lat/lng
+async function geocode(addr) {
+  if (coordCache[addr]) return coordCache[addr];
+  const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(addr)}&key=${API_KEY}`;
+  const res = await fetch(url);
+  const data = await res.json();
+  if (data.status === 'OK' && data.results.length > 0) {
+    const loc = data.results[0].geometry.location;
+    coordCache[addr] = { lat: loc.lat, lng: loc.lng };
+    return coordCache[addr];
+  }
+  throw new Error('Geocode failed: ' + data.status);
+}
+
+function setLoadingText(txt) {
+  document.getElementById('loading-text').textContent = txt;
+}
+
+function revealImage() {
+  document.getElementById('addr-bar').textContent = '📍 ' + current.addr;
+  document.getElementById('addr-bar').classList.add('visible');
+  document.getElementById('sv-overlay').classList.add('fade-out');
+  document.getElementById('btn-yes').disabled = false;
+  document.getElementById('btn-no').disabled = false;
+}
+
+async function nextAddress() {
+  if (pool.length === 0) pool = shuffle(addresses);
+  current = pool.pop();
+  answered = false;
+
+  // Reset UI
+  document.getElementById('reveal-panel').classList.remove('open');
+  document.getElementById('next-area').classList.remove('visible');
+  document.getElementById('btn-yes').disabled = true;
+  document.getElementById('btn-no').disabled = true;
+  document.getElementById('btn-yes').className = 'guess-btn yes-btn';
+  document.getElementById('btn-no').className = 'guess-btn no-btn';
+  document.getElementById('addr-bar').textContent = '';
+  document.getElementById('addr-bar').classList.remove('visible');
+
+  const overlay = document.getElementById('sv-overlay');
+  overlay.classList.remove('fade-out');
+  overlay.style.opacity = '';
+  setLoadingText('Geocoding address…');
+
+  // Remove old iframe
+  const wrapper = document.getElementById('sv-wrapper');
+  const old = wrapper.querySelector('iframe');
+  if (old) old.remove();
+  clearTimeout(loadTimer);
+
+  // Step 1: geocode
+  let coords;
+  try {
+    coords = await geocode(current.addr);
+  } catch (e) {
+    setLoadingText('Could not locate address — skipping…');
+    setTimeout(nextAddress, 2000);
+    return;
+  }
+
+  setLoadingText('Loading street view…');
+
+  // Step 2: build streetview embed with precise lat,lng
+  const frame = document.createElement('iframe');
+  frame.setAttribute('allowfullscreen', '');
+  frame.setAttribute('referrerpolicy', 'no-referrer-when-downgrade');
+
+  let revealed = false;
+  frame.onload = () => {
+    if (revealed) return;
+    revealed = true;
+    clearTimeout(loadTimer);
+    setTimeout(revealImage, 1000);
+  };
+  loadTimer = setTimeout(() => {
+    if (!revealed) { revealed = true; revealImage(); }
+  }, 7000);
+
+  wrapper.insertBefore(frame, document.getElementById('addr-bar'));
+
+  // lat,lng must be formatted as "lat,lng" with no spaces
+  frame.src = `https://www.google.com/maps/embed/v1/streetview?key=${API_KEY}&location=${coords.lat},${coords.lng}&fov=80&pitch=-5`;
+}
+
+function guess(userSaysHistoric) {
+  if (answered) return;
+  answered = true;
+  total++;
+  const isCorrect = (userSaysHistoric === current.historic);
+  if (isCorrect) { correct++; streak++; } else { wrong++; streak = 0; }
+
+  document.getElementById('cnt-correct').textContent = correct;
+  document.getElementById('cnt-wrong').textContent = wrong;
+  document.getElementById('cnt-streak').textContent = streak;
+  document.getElementById('hdr-correct').textContent = correct;
+  document.getElementById('hdr-total').textContent = total;
+
+  const acc = total > 0 ? Math.round((correct / total) * 100) : 0;
+  document.getElementById('progress-fill').style.width = acc + '%';
+
+  const btnYes = document.getElementById('btn-yes');
+  const btnNo  = document.getElementById('btn-no');
+  btnYes.disabled = true;
+  btnNo.disabled = true;
+  if (userSaysHistoric) {
+    btnYes.className = 'guess-btn yes-btn ' + (isCorrect ? 'correct-flash' : 'wrong-flash');
+    if (!isCorrect) btnNo.className = 'guess-btn no-btn correct-flash';
+  } else {
+    btnNo.className = 'guess-btn no-btn ' + (isCorrect ? 'correct-flash' : 'wrong-flash');
+    if (!isCorrect) btnYes.className = 'guess-btn yes-btn correct-flash';
+  }
+
+  document.getElementById('reveal-address').textContent = current.addr;
+  const tag = document.getElementById('verdict-tag');
+  if (current.historic) {
+    tag.className = 'verdict-tag historic';
+    tag.innerHTML = '🏛 Historic District';
+    document.getElementById('reveal-district').innerHTML =
+      `Protected under the <strong>${current.district}</strong>, designated ${current.year}. Every exterior change — a new door, a paint color, replacement windows — requires sign-off from the DC Historic Preservation Review Board.`;
+  } else {
+    tag.className = 'verdict-tag not-historic';
+    tag.innerHTML = '🏚 Not a historic district — yet';
+    document.getElementById('reveal-district').innerHTML =
+      `This block is <strong>not</strong> in a local historic district. Homeowners here can renovate without filing preservation review forms. Enjoy that freedom while it lasts — DC's preservation office is always looking for new territory.`;
+  }
+  document.getElementById('result-icon').textContent = isCorrect ? '🎯' : '😬';
+  document.getElementById('reveal-panel').classList.add('open');
+
+  const s = document.getElementById('streak-display');
+  if (streak >= 5)      s.innerHTML = `🔥 <strong>${streak}</strong>-answer streak — preservation sommelier`;
+  else if (streak >= 3) s.innerHTML = `<strong>${streak}</strong> in a row — you're getting it`;
+  else if (!isCorrect)  s.innerHTML = `Even DC planners would've missed that one.`;
+  else                  s.innerHTML = `Correct! ${acc}% accuracy overall`;
+
+  setTimeout(() => document.getElementById('next-area').classList.add('visible'), 200);
+}
+
+pool = shuffle(addresses);
+nextAddress();
+</script>
+</body>
+</html>
